@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Relative Grading System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background: #f5f5f5;
+    }
+    input, button {
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    .user-row {
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .submitted {
+      color: green;
+      font-weight: bold;
+    }
+    .result {
+      margin-top: 1.5rem;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    .current-user {
+      background: #e8f4f8;
+      border: 2px solid #4CAF50;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Google Sign-In -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <div id="g_id_onload"
+       data-client_id="181147286587-j7618kih9l4ntnfpafh38d92q4gfp2ic.apps.googleusercontent.com"
+       data-callback="handleCredentialResponse"
+       data-auto_prompt="false">
+  </div>
+
+  <div class="g_id_signin"
+       data-type="standard"
+       data-theme="outline"
+       data-size="large"></div>
+
+  <h1>Relative Grading System</h1>
+
+  <div id="userList"></div>
+  <div class="result" id="output" style="display:none;"></div>
+
+  <script>
+    let currentEmail = null;
+    let currentName = null;
+
+    // List of all allowed emails (same as server)
+    const allowedEmails = [
+      "rishav.vajpayee2022@vitstudent.ac.in",
+      "vajpayeerishav79@gmail.com",
+      "vajpayeerishav@gmail.com"
+    ];
+
+    function handleCredentialResponse(response) {
+      fetch('http://localhost:3000/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: response.credential })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          currentEmail = data.email;
+          currentName = data.name;
+          // Store in variables, not localStorage for security
+          alert(`Welcome, ${data.name} (${data.email})`);
+          loadUserList();
+        } else {
+          alert("Access denied. Not a registered VIT email.");
+        }
+      })
+      .catch(err => {
+        console.error('Auth error:', err);
+        alert("Authentication failed. Please try again.");
+      });
+    }
+
+    async function loadUserList() {
+      console.log('Loading user list...');
+      try {
+        console.log('Fetching from: http://localhost:3000/get-users');
+        const res = await fetch('http://localhost:3000/get-users');
+        console.log('Response status:', res.status);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const existingUsers = await res.json();
+        console.log('Existing users:', existingUsers);
+        
+        const container = document.getElementById("userList");
+        container.innerHTML = "";
+
+        // Create a map of existing users for quick lookup
+        const userMap = {};
+        existingUsers.forEach(user => {
+          userMap[user.email] = user;
+        });
+
+        console.log('Current user email:', currentEmail);
+        console.log('Allowed emails:', allowedEmails);
+        
+        // Show all allowed emails
+        allowedEmails.forEach(email => {
+          const row = document.createElement("div");
+          row.className = "user-row";
+          
+          const existingUser = userMap[email];
+          const isCurrentUser = (email === currentEmail);
+          
+          if (isCurrentUser) {
+            row.classList.add("current-user");
+          }
+
+          if (isCurrentUser) {
+            // Current user - show input or submitted status
+            if (existingUser && existingUser.submitted) {
+              row.innerHTML = `
+                <b>${existingUser.name || email}</b> (You) - 
+                <span class="submitted">Mark: ${existingUser.mark} - Already submitted</span>
+              `;
+            } else {
+              row.innerHTML = `
+                <b>${currentName || email}</b> (You) - 
+                <input type="number" id="markInput" min="0" max="100" placeholder="Enter mark (0-100)" step="0.01">
+                <button onclick="submitMark()">Submit Mark</button>
+              `;
+            }
+          } else {
+            // Other users
+            if (existingUser && existingUser.submitted) {
+              row.innerHTML = `
+                <b>${existingUser.name || email}</b> - 
+                <span class="submitted">Submitted</span>
+              `;
+            } else {
+              row.innerHTML = `
+                <b>${email}</b> - 
+                <span style="color: #666;">Not Submitted</span>
+              `;
+            }
+          }
+
+          container.appendChild(row);
+        });
+
+        // Show grade calculation if there are submitted marks
+        if (existingUsers.some(user => user.submitted)) {
+          await updateGradeDisplay();
+        }
+
+      } catch (err) {
+        console.error('Detailed error loading user list:', err);
+        console.error('Error message:', err.message);
+        alert(`Error loading user list: ${err.message}. Please check console and refresh the page.`);
+      }
+    }
+
+    async function submitMark() {
+      const markInput = document.getElementById("markInput");
+      const value = parseFloat(markInput.value);
+
+      if (isNaN(value) || value < 0 || value > 100) {
+        alert("Please enter a valid mark between 0 and 100.");
+        return;
+      }
+
+      if (!currentEmail || !currentName) {
+        alert("Please sign in first.");
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:3000/submit-mark', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            name: currentName, 
+            email: currentEmail, 
+            value: value 
+          })
+        });
+
+        if (res.status === 403) {
+          const msg = await res.text();
+          alert(msg);
+          return;
+        }
+
+        if (res.ok) {
+          alert("Mark submitted successfully!");
+          await loadUserList();
+        } else {
+          alert("Error submitting mark. Please try again.");
+        }
+
+      } catch (err) {
+        console.error('Submit error:', err);
+        alert("Network error. Please check your connection and try again.");
+      }
+    }
+
+    async function updateGradeDisplay() {
+      try {
+        const gradesRes = await fetch('http://localhost:3000/calculate-grades');
+        
+        if (!gradesRes.ok) {
+          return; // No grades to display yet
+        }
+
+        const data = await gradesRes.json();
+
+        const out = document.getElementById("output");
+        out.innerHTML = `
+          <h3>Grade Bands (from ${data.count} submitted marks)</h3>
+          <p>Mean: <b>${data.mean}</b></p>
+          <p>Standard Deviation: <b>${data.stdDev}</b></p>
+          <ul>
+            <li><b>S Grade</b>: ${data.S} and above</li>
+            <li><b>A Grade</b>: ${data.A[0]} – ${data.A[1]}</li>
+            <li><b>B Grade</b>: ${data.B[0]} – ${data.B[1]}</li>
+            <li><b>C Grade</b>: ${data.C[0]} – ${data.C[1]}</li>
+            <li><b>D Grade</b>: ${data.D[0]} – ${data.D[1]}</li>
+            <li><b>E Grade</b>: ${data.E[0]} – ${data.E[1]}</li>
+            <li><b>F Grade</b>: Below ${data.F}</li>
+          </ul>
+        `;
+        out.style.display = "block";
+      } catch (err) {
+        console.error('Error updating grades:', err);
+      }
+    }
+
+    // Initialize on page load
+    window.onload = () => {
+      console.log("Page loaded. Please sign in to continue.");
+    };
+  </script>
+</body>
+</html>
