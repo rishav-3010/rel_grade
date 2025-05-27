@@ -59,7 +59,7 @@ const allowedEmails = [
   "rishiraam.gopinath2022@vitstudent.ac.in",
   "sai.abhinavreddy2022@vitstudent.ac.in",
   "rishav.vajpayee2022@vitstudent.ac.in",
-  "sai.sumanth2022a@vitstudent.ac.in",
+  "sai.sumanth2022@vitstudent.ac.in",
   "kishan.s2022@vitstudent.ac.in",
   "pandigunta.deeraj2022@vitstudent.ac.in",
   "rithanyaa.jr2022@vitstudent.ac.in",
