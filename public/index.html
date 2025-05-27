@@ -244,18 +244,19 @@
 
         const out = document.getElementById("output");
         out.innerHTML = `
-          <h3>Grade Bands (from ${data.count} submitted marks)</h3>
-          <p>Mean: <b>${data.mean}</b></p>
-          <p>Standard Deviation: <b>${data.stdDev}</b></p>
-          <ul>
-            <li><b>S Grade</b>: ${data.S} and above</li>
-            <li><b>A Grade</b>: ${data.A[0]} – ${data.A[1]}</li>
-            <li><b>B Grade</b>: ${data.B[0]} – ${data.B[1]}</li>
-            <li><b>C Grade</b>: ${data.C[0]} – ${data.C[1]}</li>
-            <li><b>D Grade</b>: ${data.D[0]} – ${data.D[1]}</li>
-            <li><b>E Grade</b>: ${data.E[0]} – ${data.E[1]}</li>
-            <li><b>F Grade</b>: Below ${data.F}</li>
-          </ul>
+        <h3>Grade Bands (from ${data.count} submitted marks)</h3>
+        <p>Mean: <b>${data.mean}</b></p>
+        <p>Standard Deviation: <b>${data.stdDev}</b></p>
+        <p>Pass Mark: <b>${data.passMark}</b></p>
+        <ul>
+          <li><b>S Grade</b>: ${data.S}</li>
+          <li><b>A Grade</b>: ${data.A}</li>
+          <li><b>B Grade</b>: ${data.B}</li>
+          <li><b>C Grade</b>: ${data.C}</li>
+          <li><b>D Grade</b>: ${data.D}</li>
+          <li><b>E Grade</b>: ${data.E}</li>
+          <li><b>F Grade</b>: ${data.F}</li>
+        </ul>
         `;
         out.style.display = "block";
       } catch (err) {
