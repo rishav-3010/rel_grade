@@ -97,7 +97,7 @@ app.post('/submit-mark', async (req, res) => {
       user = new User({ name, email });
     }
 
-    user.mark = value;
+    user.mark = Math.ceil(value);
     user.submitted = true;
     await user.save();
 
@@ -120,22 +120,49 @@ app.get('/calculate-grades', async (req, res) => {
       return res.status(400).send("No marks available");
     }
 
-    const mean = marks.reduce((a, b) => a + b, 0) / marks.length;
-    const stdDev = Math.sqrt(marks.reduce((sum, m) => sum + Math.pow(m - mean, 2), 0) / marks.length);
-    const round = x => Math.round(x * 100) / 100;
+    // Calculate mean from rounded marks
+const mean = marks.reduce((a, b) => a + b, 0) / marks.length;
 
-    const result = {
-      count: marks.length,
-      mean: round(mean),
-      stdDev: round(stdDev),
-      S: round(mean + 1.5 * stdDev),
-      A: [round(mean + 0.5 * stdDev), round(mean + 1.5 * stdDev)],
-      B: [round(mean - 0.5 * stdDev), round(mean + 0.5 * stdDev)],
-      C: [round(mean - 1.0 * stdDev), round(mean - 0.5 * stdDev)],
-      D: [round(mean - 1.5 * stdDev), round(mean - 1.0 * stdDev)],
-      E: [round(mean - 2.0 * stdDev), round(mean - 1.5 * stdDev)],
-      F: round(mean - 2.0 * stdDev)
-    };
+// Calculate standard deviation
+let variance = 0;
+for (let mark of marks) {
+  variance += Math.pow(mark - mean, 2);
+}
+variance /= marks.length;
+const sigma = Math.sqrt(variance);
+
+// Calculate cutoffs (exact same logic as Java)
+const sCut = Math.max(mean + 1.5 * sigma, 80);
+const aCut = mean + 0.5 * sigma;
+const bCut = mean - 0.5 * sigma;
+const cCut = mean - 1.0 * sigma;
+const dCut = mean - 1.5 * sigma;
+const eCut = mean - 2.0 * sigma;
+
+// Round grade boundaries
+const sMin = Math.round(sCut);
+const aMin = Math.round(aCut);
+const bMin = Math.round(bCut);
+const cMin = Math.round(cCut);
+const dMin = Math.round(dCut);
+const eMin = Math.round(eCut);
+
+// Adjust pass mark if E band minimum < 50
+const passMark = Math.min(eMin, 50);
+
+const result = {
+  count: marks.length,
+  mean: Math.round(mean * 100) / 100,
+  stdDev: Math.round(sigma * 100) / 100,
+  S: sMin <= 100 ? `>= ${sMin}` : "Not applicable (cutoff > 100)",
+  A: `>= ${aMin} and < ${sMin}`,
+  B: `>= ${bMin} and < ${aMin}`,
+  C: `>= ${cMin} and < ${bMin}`,
+  D: `>= ${dMin} and < ${cMin}`,
+  E: `>= ${passMark} and < ${dMin}`,
+  F: `< ${passMark}`,
+  passMark: passMark
+};
 
     console.log('✅ Grades calculated from MongoDB data:', result);
     res.json(result);
