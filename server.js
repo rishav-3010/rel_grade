@@ -13,7 +13,8 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const allowedEmails = [
   "rishav.vajpayee2022@vitstudent.ac.in",
   "vajpayeerishav79@gmail.com",
-  "vajpayeerishav@gmail.com"
+  "vajpayeerishav@gmail.com",
+  "vajpayeeyukta06@gmail.com"
 ];
 
 console.log('🚀 Server starting...');
