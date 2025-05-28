@@ -35,6 +35,40 @@
       background: #e8f4f8;
       border: 2px solid #4CAF50;
     }
+    .auth-section {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    .user-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #e8f4f8;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+    }
+    .logout-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 0.7rem 1.2rem;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .logout-btn:hover {
+      background: #da190b;
+    }
+    #signInSection {
+      text-align: center;
+    }
+    #mainContent {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -42,30 +76,49 @@
   <!-- Google Sign-In -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <div id="g_id_onload"
-       data-client_id="181147286587-j7618kih9l4ntnfpafh38d92q4gfp2ic.apps.googleusercontent.com"
-       data-callback="handleCredentialResponse"
-       data-auto_prompt="false">
+  <!-- Sign In Section -->
+  <div id="signInSection" class="auth-section">
+    <h2>Please Sign In</h2>
+    <p>Sign in with your VIT email to access the grading system.</p>
+    
+    <div id="g_id_onload"
+         data-client_id="181147286587-j7618kih9l4ntnfpafh38d92q4gfp2ic.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse"
+         data-auto_prompt="false">
+    </div>
+
+    <div class="g_id_signin"
+         data-type="standard"
+         data-theme="outline"
+         data-size="large"></div>
   </div>
 
-  <div class="g_id_signin"
-       data-type="standard"
-       data-theme="outline"
-       data-size="large"></div>
+  <!-- Main Content (hidden until signed in) -->
+  <div id="mainContent">
+    <div class="user-info" id="userInfo">
+      <div>
+        <strong>Welcome, <span id="userName"></span></strong>
+        <br>
+        <small id="userEmail"></small>
+      </div>
+      <button class="logout-btn" onclick="signOut()">Sign Out</button>
+    </div>
 
-  <h1>Relative Grading System</h1>
+    <h1>CAO-Relative Grading System</h1>
 
-  <div id="userList"></div>
-  <div class="result" id="output" style="display:none;"></div>
+    <div id="userList"></div>
+    <div class="result" id="output" style="display:none;"></div>
+  </div>
 
   <script>
     let currentEmail = null;
     let currentName = null;
+    let authData = null;
 
     // Dynamic API URL detection
     const API_BASE_URL = window.location.hostname === 'localhost' 
       ? 'http://localhost:3000' 
-      : 'https://rel-grade.onrender.com';
+      : 'https://CAO-rel-grade.onrender.com';
 
     console.log('Using API Base URL:', API_BASE_URL);
 
@@ -142,7 +195,43 @@
   "kenguva.abhinav2022@vitstudent.ac.in"
 ];
 
+    // Session Management Functions
+    function saveAuthData(email, name) {
+      const sessionData = {
+        email: email,
+        name: name,
+        timestamp: Date.now()
+      };
+      // Store in a global variable (not localStorage since it's not supported)
+      authData = sessionData;
+      console.log('Auth data saved:', sessionData);
+    }
 
+    function getAuthData() {
+      // Check if session is still valid (24 hours)
+      if (authData && authData.timestamp) {
+        const now = Date.now();
+        const sessionAge = now - authData.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        if (sessionAge < maxAge) {
+          return authData;
+        } else {
+          console.log('Session expired');
+          authData = null;
+        }
+      }
+      return null;
+    }
+
+    function clearAuthData() {
+      authData = null;
+      currentEmail = null;
+      currentName = null;
+      console.log('Auth data cleared');
+    }
+
+    // Authentication Functions
     function handleCredentialResponse(response) {
       console.log('Attempting authentication...');
       fetch(`${API_BASE_URL}/api/auth/google`, {
@@ -159,6 +248,13 @@
         if (data.success) {
           currentEmail = data.email;
           currentName = data.name;
+          
+          // Save authentication data for session persistence
+          saveAuthData(data.email, data.name);
+          
+          // Show main content and hide sign-in
+          showMainContent();
+          
           alert(`Welcome, ${data.name} (${data.email})`);
           loadUserList();
         } else {
@@ -171,6 +267,62 @@
       });
     }
 
+    async function signOut() {
+  try {
+    await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' });
+  } catch (error) {
+    console.error('Logout error:', error);
+  }
+  
+  // Clear stored authentication data
+  clearAuthData();
+  
+  // Hide main content and show sign-in
+  showSignInSection();
+  
+  // Clear user list
+  document.getElementById("userList").innerHTML = "";
+  document.getElementById("output").style.display = "none";
+  
+  console.log('User signed out');
+  alert('You have been signed out successfully.');
+}
+
+    // UI Management Functions
+    function showMainContent() {
+      document.getElementById('signInSection').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+      
+      // Update user info display
+      document.getElementById('userName').textContent = currentName || 'User';
+      document.getElementById('userEmail').textContent = currentEmail || '';
+    }
+
+    function showSignInSection() {
+      document.getElementById('signInSection').style.display = 'block';
+      document.getElementById('mainContent').style.display = 'none';
+    }
+
+    async function checkExistingSession() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/check-session`);
+    const data = await response.json();
+    
+    if (data.success) {
+      console.log('Found existing session:', data);
+      currentEmail = data.email;
+      currentName = data.name;
+      showMainContent();
+      loadUserList();
+      return true;
+    }
+  } catch (error) {
+    console.error('Session check error:', error);
+  }
+  return false;
+}
+
+    // Your existing functions (loadUserList, submitMark, updateGradeDisplay)
     async function loadUserList() {
       console.log('Loading user list...');
       try {
@@ -331,10 +483,18 @@
     }
 
     // Initialize on page load
-    window.onload = () => {
-      console.log("Page loaded. Please sign in to continue.");
-      console.log("API Base URL:", API_BASE_URL);
-    };
+    // Initialize on page load
+window.onload = async () => {
+  console.log("Page loaded. Checking for existing session...");
+  console.log("API Base URL:", API_BASE_URL);
+  
+  // Check if user was previously signed in
+  const hasSession = await checkExistingSession();
+  if (!hasSession) {
+    console.log("No existing session found. Please sign in to continue.");
+    showSignInSession();
+  }
+};
   </script>
 </body>
 </html>
