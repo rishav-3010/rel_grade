@@ -139,10 +139,23 @@ app.post('/api/auth/google', async (req, res) => {
 
     console.log(`🔐 Auth attempt: ${email}`);
 
-    if (!allowedEmails.includes(email)) {
-      console.log(`❌ Unauthorized email: ${email}`);
-      return res.status(403).json({ success: false });
-    }
+
+    //if u want to give access to the specific emails to login
+
+//     if (!allowedEmails.includes(email)) {
+//   console.log(`❌ Unauthorized email: ${email}`);
+//   return res.status(403).json({ success: false });
+// }
+
+    
+    
+    // Allow everyone to log in(cut down)
+const isAllowed = allowedEmails.includes(email);
+req.session.user = { email, name, isAllowed };
+
+console.log(`✅ Login: ${name} (${email}) - Allowed: ${isAllowed}`);
+res.status(200).json({ success: true, email, name, isAllowed });
+//cut above to give access of login to specific email
 
     // Store user in session
     req.session.user = { email, name };
