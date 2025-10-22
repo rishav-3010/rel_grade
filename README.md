@@ -51,14 +51,14 @@ Save your ₹400! 💵
 
 #### Example 3: 🎯 On the Edge
 ```
-Your Mark: 70
+Your Mark: 71
 Calculated Grade Bands:
   A Grade: 71-82
   B Grade: 60-70  ← You're here
 
 Decision: High Risk, High Reward
 Need minimum 1 mark increase to get A
-If you're confident, apply! Otherwise, save ₹400
+If you're not confident, apply! Otherwise, save ₹400
 ```
 
 ## ✨ Features
